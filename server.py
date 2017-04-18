@@ -1,6 +1,7 @@
 import os
 
 from bip32utils import BIP32Key
+from ecdsa import BadSignatureError
 from ethereum.utils import sha3
 from flask import Flask, jsonify, request
 
@@ -41,7 +42,11 @@ def verify_signed_message(uid):
     verifying_key = user_private_key.K
     signature = bytes.fromhex(data["signature"])
     message = data["message"].encode('utf-8')
-    return jsonify({"ok": verifying_key.verify(signature, message)})
+    try:
+        verifying_key.verify(signature, message)
+        return jsonify({"ok": True})
+    except BadSignatureError:
+        return jsonify({"ok": False})
 
 
 @app.errorhandler(403)
