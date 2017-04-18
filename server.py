@@ -12,7 +12,11 @@ app.config.from_pyfile('config.py')
 
 app.config.from_mapping(os.environ)
 
-master_entropy = os.urandom(32)
+for key in app.config["REQUIRED_ENV_CONFIG_FIELDS"]:
+    if key not in os.environ:
+        raise EnvironmentError("Required env variable {} missing".format(key))
+
+master_entropy = bytes.fromhex(app.config["MASTER_ENTROPY"])
 
 
 def pub_to_addr(pub):
