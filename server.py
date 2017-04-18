@@ -11,8 +11,7 @@ app.config.from_pyfile('config.py')
 
 app.config.from_mapping(os.environ)
 
-entropy = os.urandom(32)
-masterPrivateKey = BIP32Key.fromEntropy(entropy)
+master_entropy = os.urandom(32)
 
 
 def pub_to_addr(pub):
@@ -23,10 +22,11 @@ def pub_to_addr(pub):
 @app.route('/api/<int:uid>/sign', methods=['POST'])
 @auth.verify_jwt(check=auth.verify_logged_in)
 def sign_message_by_user(uid):
+    user_entropy = sha3(b'%d%b' % (uid, master_entropy))
+    user_private_key = BIP32Key.fromEntropy(user_entropy)
     message = request.get_json()["message"]
     binary_message = message.encode('utf-8')
-    childPrivateKey = masterPrivateKey.ChildKey(uid)
-    signature = childPrivateKey.k.sign(binary_message).hex()
+    signature = user_private_key.k.sign(binary_message).hex()
     return jsonify({
         "signature": signature,
         "message": message
@@ -35,8 +35,10 @@ def sign_message_by_user(uid):
 
 @app.route('/api/<int:uid>/verify', methods=['POST'])
 def verify_signed_message(uid):
+    user_entropy = sha3(b'%d%b' % (uid, master_entropy))
+    user_private_key = BIP32Key.fromEntropy(user_entropy)
     data = request.get_json()
-    verifying_key = masterPrivateKey.ChildKey(uid).K
+    verifying_key = user_private_key.K
     signature = bytes.fromhex(data["signature"])
     message = data["message"].encode('utf-8')
     return jsonify({"ok": verifying_key.verify(signature, message)})
