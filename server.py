@@ -1,6 +1,7 @@
 import os
 
-from ecdsa import SECP256k1, SigningKey
+from bip32utils import BIP32Key
+from ethereum.utils import sha3
 from flask import Flask, jsonify, request
 
 import auth
@@ -10,15 +11,35 @@ app.config.from_pyfile('config.py')
 
 app.config.from_mapping(os.environ)
 
+entropy = os.urandom(32)
+masterPrivateKey = BIP32Key.fromEntropy(entropy)
 
-@app.route('/api/<string:uid>/sign', methods=['POST'])
+
+def pub_to_addr(pub):
+    assert (len(pub) == 64)
+    return sha3(pub)[12:]
+
+
+@app.route('/api/<int:uid>/sign', methods=['POST'])
 @auth.verify_jwt(check=auth.verify_logged_in)
 def sign_message_by_user(uid):
     message = request.get_json()["message"]
     binary_message = message.encode('utf-8')
-    key = SigningKey.generate(curve=SECP256k1)
-    signature = key.sign(binary_message)
-    return signature.hex()
+    childPrivateKey = masterPrivateKey.ChildKey(uid)
+    signature = childPrivateKey.k.sign(binary_message).hex()
+    return jsonify({
+        "signature": signature,
+        "message": message
+    })
+
+
+@app.route('/api/<int:uid>/verify', methods=['POST'])
+def verify_signed_message(uid):
+    data = request.get_json()
+    verifying_key = masterPrivateKey.ChildKey(uid).K
+    signature = bytes.fromhex(data["signature"])
+    message = data["message"].encode('utf-8')
+    return jsonify({"ok": verifying_key.verify(signature, message)})
 
 
 @app.errorhandler(403)
