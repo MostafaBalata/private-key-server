@@ -45,3 +45,17 @@ class PrivateKeyServerTest(unittest.TestCase):
         signed = self.sign(message=MESSAGE)
         verification = self.verify(signed)
         self.assertEqual(verification["ok"], True)
+
+    def testVerificationFailsWithWrongMessage(self):
+        MESSAGE = "message"
+        signed = self.sign(message=MESSAGE)
+        signed["message"] = signed["message"][::-1]
+        verification = self.verify(signed)
+        self.assertEqual(verification["ok"], False)
+
+    def testVerificationFailsWithWrongSignature(self):
+        MESSAGE = "message"
+        signed = self.sign(message=MESSAGE)
+        signed["signature"] = signed["signature"][::-1]
+        verification = self.verify(signed)
+        self.assertEqual(verification["ok"], False)
