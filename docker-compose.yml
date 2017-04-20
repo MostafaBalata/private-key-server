@@ -1,0 +1,10 @@
+version: '2'
+services:
+  private-key-server:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - config.env
+    volumes:
+      - ./ec512.pub.pem:/usr/src/app/ec512.pub.pem
